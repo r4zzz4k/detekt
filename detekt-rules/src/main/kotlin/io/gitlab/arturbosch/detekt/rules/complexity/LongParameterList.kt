@@ -2,15 +2,10 @@ package io.gitlab.arturbosch.detekt.rules.complexity
 
 import io.gitlab.arturbosch.detekt.api.Config
 import io.gitlab.arturbosch.detekt.api.Debt
-import io.gitlab.arturbosch.detekt.api.Entity
 import io.gitlab.arturbosch.detekt.api.Issue
-import io.gitlab.arturbosch.detekt.api.Metric
 import io.gitlab.arturbosch.detekt.api.Severity
-import io.gitlab.arturbosch.detekt.api.ThresholdRule
-import io.gitlab.arturbosch.detekt.api.ThresholdedCodeSmell
-import io.gitlab.arturbosch.detekt.rules.isOverride
+import io.gitlab.arturbosch.detekt.rules.AbstractLongParameterList
 import org.jetbrains.kotlin.psi.KtNamedFunction
-import org.jetbrains.kotlin.psi.KtParameterList
 
 /**
  * Reports functions which have more parameters than a certain threshold (default: 6).
@@ -23,7 +18,7 @@ import org.jetbrains.kotlin.psi.KtParameterList
 class LongParameterList(
     config: Config = Config.empty,
     threshold: Int = DEFAULT_THRESHOLD_PARAMETER_LENGTH
-) : ThresholdRule(config, threshold) {
+) : AbstractLongParameterList(config, threshold) {
 
     override val issue = Issue("LongParameterList",
             Severity.Maintainability,
@@ -32,28 +27,10 @@ class LongParameterList(
                     "Prefer methods with short parameter lists.",
             Debt.TWENTY_MINS)
 
-    private val ignoreDefaultParameters = valueOrDefault(IGNORE_DEFAULT_PARAMETERS, false)
+    override val ignoreDefaultParameters = valueOrDefault(IGNORE_DEFAULT_PARAMETERS, false)
 
     override fun visitNamedFunction(function: KtNamedFunction) {
-        if (function.isOverride()) return
-        val parameterList = function.valueParameterList
-        val parameters = parameterList?.parameterCount()
-
-        if (parameters != null && parameters >= threshold) {
-            report(ThresholdedCodeSmell(issue,
-                    Entity.from(parameterList),
-                    Metric("SIZE", parameters, threshold),
-                    "The function ${function.nameAsSafeName} has too many parameters. The current threshold" +
-                            " is set to $threshold."))
-        }
-    }
-
-    private fun KtParameterList.parameterCount(): Int {
-        return if (ignoreDefaultParameters) {
-            parameters.filter { !it.hasDefaultValue() }.size
-        } else {
-            parameters.size
-        }
+        validateFunction(function, "The function ${function.nameAsSafeName}")
     }
 
     companion object {
